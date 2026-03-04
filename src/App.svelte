@@ -48,6 +48,7 @@
   let pauseOnPunctuation = true;
   let punctuationPauseMultiplier = 2;
   let wordLengthWPMMultiplier = 5;
+  let showContextEnabled = true;
 
   // Animation
   let wordOpacity = 1;
@@ -201,7 +202,8 @@
         wordLengthWPMMultiplier,
         pauseAfterWords,
         pauseDuration,
-        frameWordCount
+        frameWordCount,
+        showContextEnabled
       }
     });
   }
@@ -225,6 +227,7 @@
       pauseAfterWords = session.settings.pauseAfterWords ?? pauseAfterWords;
       pauseDuration = session.settings.pauseDuration ?? pauseDuration;
       frameWordCount = session.settings.frameWordCount ?? frameWordCount;
+      showContextEnabled = session.settings.showContextEnabled ?? showContextEnabled;
     }
 
     isManualPause = false;
@@ -435,6 +438,7 @@
         bind:pauseAfterWords
         bind:pauseDuration
         bind:frameWordCount
+        bind:showContextEnabled
         on:close={() => showSettings = false}
       />
     </div>
@@ -492,7 +496,7 @@
       {fadeDuration}
       {fadeEnabled}
       multiWordEnabled={frameWordCount > 1}
-      showContext={isManualPause}
+      showContext={isManualPause && showContextEnabled}
       {contextBefore}
       {contextAfter}
     />
