@@ -28,6 +28,7 @@
   let currentWordIndex = 0;
   let isPlaying = false;
   let isPaused = false;
+  let isManualPause = false;
   let showSettings = false;
   let showTextInput = false;
   let progress = 0;
@@ -49,6 +50,7 @@
   let pauseOnPunctuation = true;
   let punctuationPauseMultiplier = 2;
   let wordLengthWPMMultiplier = 5;
+  let showContextEnabled = true;
 
   // Animation
   let wordOpacity = 1;
@@ -56,8 +58,11 @@
   let fadeTimeoutId = null;
 
   // Derived state
-  $: currentWord = words[currentWordIndex - 1] || (words.length > 0 ? words[0] : '');
-  $: wordFrame = extractWordFrame(words, Math.max(0, currentWordIndex - 1), frameWordCount);
+  $: activeIndex = Math.max(0, currentWordIndex - 1);
+  $: currentWord = words[activeIndex] || (words.length > 0 ? words[0] : '');
+  $: wordFrame = extractWordFrame(words, activeIndex, frameWordCount);
+  $: contextBefore = isPaused ? words.slice(Math.max(0, activeIndex - 60), activeIndex) : [];
+  $: contextAfter = isPaused ? words.slice(activeIndex + 1, Math.min(words.length, activeIndex + 61)) : [];
   $: timeRemaining = formatTimeRemaining(words.length - currentWordIndex, wordsPerMinute);
   $: isFocusMode = isPlaying || isPaused;
 
@@ -77,6 +82,16 @@
       return;
     }
 
+    if (fadeEnabled) {
+      wordOpacity = 0;
+      fadeTimeoutId = setTimeout(() => {
+        wordOpacity = 1;
+      }, 10);
+    }
+
+    progress = ((currentWordIndex + 1) / words.length) * 100;
+    currentWordIndex++;
+
     if (shouldPauseAtWord(currentWordIndex, pauseAfterWords)) {
       isPaused = true;
       setTimeout(() => {
@@ -88,15 +103,6 @@
       return;
     }
 
-    if (fadeEnabled) {
-      wordOpacity = 0;
-      fadeTimeoutId = setTimeout(() => {
-        wordOpacity = 1;
-      }, 10);
-    }
-
-    progress = ((currentWordIndex + 1) / words.length) * 100;
-    currentWordIndex++;
     scheduleNextWord();
   }
 
@@ -111,6 +117,7 @@
     if (words.length === 0) return;
     isPlaying = true;
     isPaused = false;
+    isManualPause = false;
     showSettings = false;
     showTextInput = false;
     showNextWord();
@@ -119,6 +126,7 @@
   function pause() {
     isPlaying = false;
     isPaused = true;
+    isManualPause = true;
     if (intervalId) {
       clearTimeout(intervalId);
       intervalId = null;
@@ -129,6 +137,7 @@
     if (currentWordIndex < words.length) {
       isPlaying = true;
       isPaused = false;
+      isManualPause = false;
       scheduleNextWord();
     }
   }
@@ -136,6 +145,7 @@
   function stop() {
     isPlaying = false;
     isPaused = false;
+    isManualPause = false;
     currentWordIndex = 0;
     progress = 0;
     wordOpacity = 1;
@@ -194,7 +204,8 @@
         wordLengthWPMMultiplier,
         pauseAfterWords,
         pauseDuration,
-        frameWordCount
+        frameWordCount,
+        showContextEnabled
       }
     });
   }
@@ -218,8 +229,10 @@
       pauseAfterWords = session.settings.pauseAfterWords ?? pauseAfterWords;
       pauseDuration = session.settings.pauseDuration ?? pauseDuration;
       frameWordCount = session.settings.frameWordCount ?? frameWordCount;
+      showContextEnabled = session.settings.showContextEnabled ?? showContextEnabled;
     }
 
+    isManualPause = false;
     showSavedSessionPrompt = false;
     return true;
   }
@@ -457,6 +470,7 @@
         bind:pauseAfterWords
         bind:pauseDuration
         bind:frameWordCount
+        bind:showContextEnabled
         on:close={() => showSettings = false}
       />
     </div>
@@ -577,6 +591,9 @@
       {fadeDuration}
       {fadeEnabled}
       multiWordEnabled={frameWordCount > 1}
+      showContext={isManualPause && showContextEnabled}
+      {contextBefore}
+      {contextAfter}
     />
   </div>
 
