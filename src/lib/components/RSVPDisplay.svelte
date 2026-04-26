@@ -27,6 +27,9 @@
   $: wordsBefore = useMultiMode ? wordGroup.slice(0, highlightIndex) : [];
   $: wordsAfter = useMultiMode ? wordGroup.slice(highlightIndex + 1) : [];
 
+  // Scale font down for long words so they fit without overflow
+  $: fontScale = currentWord.length > 13 ? Math.max(0.4, 13 / currentWord.length) : 1;
+
   // FIX: Detect Hebrew, Arabic, and other RTL scripts
   $: isRtl = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/.test(currentWord);
 </script>
@@ -41,7 +44,7 @@
     class="word-container"
     class:multi-mode={useMultiMode}
     class:is-paused={showContext}
-    style="opacity: {opacity}; transition: opacity {fadeEnabled ? fadeDuration : 0}ms ease-in-out;"
+    style="opacity: {opacity}; transition: opacity {fadeEnabled ? fadeDuration : 0}ms ease-in-out; font-size: clamp({3 * fontScale}rem, {8 * fontScale}vw, {6 * fontScale}rem);"
   >
     {#if currentWord}
       <!-- ORP letter always centered at 50% -->
