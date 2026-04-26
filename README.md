@@ -355,8 +355,16 @@ This fork adds the following features and improvements:
 - Progress synced to server on pause, stop, and book switch
 - Works across devices — open on any browser and pick up where you left off
 
+### Display & Settings
+- **Font size**: Text size slider (50–150%) in settings
+- **ORP position**: Adjust the focal letter's horizontal position (15–50% from left edge) in settings
+- **RTL support**: ORP position automatically mirrors for right-to-left text
+- **Persistent settings**: WPM, font size, ORP position, and all other settings are saved independently of sessions and survive page reloads without a saved book
+
 ### Reading Experience
 - **Click/tap to pause and resume** in the reading area
+- **Minimal playback UI**: All buttons are hidden while playing; tap or click the display area to pause; a one-time hint popup explains this on first use
+- **Restart menu**: Restart button opens a popover with three options — return to last paused position, jump to chapter start, or go to beginning of book
 - **Arrow key navigation** pauses playback while held, resumes on release
 - **Shift+Arrow** jumps 5 words at a time
 - **WPM indicator** flashes briefly when speed is changed via keyboard
@@ -368,6 +376,7 @@ This fork adds the following features and improvements:
 - WPM buttons adjust by 25 instead of 50
 - Disabled double-tap zoom to prevent accidental zooming
 - Responsive header that wraps naturally on small screens
+- **Paused-context stacking**: Context words appear above and below the current word on narrow screens instead of left and right
 
 ### Keyboard Shortcuts (Updated)
 | Key | Action |
