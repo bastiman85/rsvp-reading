@@ -326,6 +326,64 @@ wordIndexToPercentage(50, 100) // 50
 wordIndexToPercentage(25, 50) // 50
 ```
 
+## Fork Changes
+
+This fork adds the following features and improvements:
+
+### Book Library
+- **Persistent book library** with server-side JSON storage and localStorage cache
+- Books are automatically saved when loaded, with title, progress, and chapters
+- Switch between books and resume where you left off
+- Editable book titles with EPUB metadata auto-detection
+- Last read book loads automatically on startup
+
+### EPUB Chapter Support
+- **Proper chapter detection** using EPUB's built-in table of contents (toc.ncx / nav.xhtml) instead of regex guessing
+- Chapter navigation dropdown in the header
+- Chapter markers on the progress bar (dots on mobile, ticks on desktop) with click-to-jump
+- Hover tooltips showing chapter names
+- Time remaining to next chapter shown when paused in reading mode
+- Toggle chapter markers on/off in settings
+
+### Server-Side Storage
+- Express server (`server.js`) serving both the app and a REST API
+- Books and progress stored in `data/library.json`
+- Progress synced to server on pause, stop, and book switch
+- Works across devices — open on any browser and pick up where you left off
+
+### Reading Experience
+- **Click/tap to pause and resume** in the reading area
+- **Arrow key navigation** pauses playback while held, resumes on release
+- **Shift+Arrow** jumps 5 words at a time
+- **WPM indicator** flashes briefly when speed is changed via keyboard
+- Stop button preserves position (play resumes from where you stopped)
+- Configurable context words before/after current word when paused
+
+### Mobile Improvements
+- Word-by-word navigation buttons (single and 5-word skip) when paused
+- WPM buttons adjust by 25 instead of 50
+- Disabled double-tap zoom to prevent accidental zooming
+- Responsive header that wraps naturally on small screens
+
+### Keyboard Shortcuts (Updated)
+| Key | Action |
+|-----|--------|
+| `Arrow Up/Down` | Adjust speed (±25 WPM) |
+| `Arrow Left/Right` | Navigate words (auto-pauses during playback) |
+| `Shift+Arrow Left/Right` | Skip 5 words |
+
+### Running with Server
+
+```bash
+# Development (two terminals)
+npm run serve    # API server on port 3000
+npm run dev      # Vite dev server with API proxy
+
+# Production
+npm run build
+npm run serve    # Serves app + API on port 3000
+```
+
 ## Browser Support
 
 Works in all modern browsers:
