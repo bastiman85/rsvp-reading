@@ -405,7 +405,7 @@
 
    const chapter = chapters[index];
    currentChapterIndex = index;
-   currentWordIndex = Math.max(0, Math.min(words.length, chapter.wordIndex));
+   currentWordIndex = Math.min(words.length, chapter.wordIndex + 1);
    progress = (currentWordIndex / words.length) * 100;
 
    showJumpTo = false;
