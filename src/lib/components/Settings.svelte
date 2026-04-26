@@ -14,6 +14,7 @@
   export let showChapterMarkers = true;
   export let contextWordsBefore = 20;
   export let contextWordsAfter = 10;
+  export let fontSizePercent = 100;
 
   const dispatch = createEventDispatcher();
 
@@ -86,6 +87,14 @@
         <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
       </svg>
       <span>Display</span>
+    </div>
+
+    <div class="control-row">
+      <div class="control-header">
+        <span>Text size</span>
+        <span class="control-value">{fontSizePercent}%</span>
+      </div>
+      <input type="range" min="50" max="150" step="5" bind:value={fontSizePercent} class="slider">
     </div>
 
     <div class="control-row">

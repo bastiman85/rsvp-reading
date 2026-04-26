@@ -32,6 +32,7 @@
 
   // State
   let frameWordCount = 1;
+  let fontSizePercent = 100;
   let text = `Rapid serial visual presentation (RSVP) is a scientific method for studying the timing of vision. In RSVP, a sequence of stimuli is shown to an observer at one location in their visual field. This technique has been adapted for speed reading applications, where words are displayed one at a time at a fixed point, eliminating the need for eye movements and potentially increasing reading speed significantly.`;
   let words = [];
   let currentWordIndex = 0;
@@ -339,7 +340,8 @@
         pauseAfterWords,
         pauseDuration,
         frameWordCount,
-        showContextEnabled
+        showContextEnabled,
+        fontSizePercent
       }
     });
   }
@@ -364,6 +366,7 @@
       pauseDuration = session.settings.pauseDuration ?? pauseDuration;
       frameWordCount = session.settings.frameWordCount ?? frameWordCount;
       showContextEnabled = session.settings.showContextEnabled ?? showContextEnabled;
+      fontSizePercent = session.settings.fontSizePercent ?? fontSizePercent;
     }
 
     isManualPause = false;
@@ -745,6 +748,7 @@
         bind:showChapterMarkers
         bind:contextWordsBefore
         bind:contextWordsAfter
+        bind:fontSizePercent
         on:close={() => showSettings = false}
       />
     </div>
@@ -870,6 +874,7 @@
       showContext={isManualPause && showContextEnabled}
       {contextBefore}
       {contextAfter}
+      {fontSizePercent}
     />
   </div>
 
