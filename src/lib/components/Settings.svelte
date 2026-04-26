@@ -11,6 +11,9 @@
   export let frameWordCount = 1;
   export let wordLengthWPMMultiplier = 5;
   export let showContextEnabled = true;
+  export let showChapterMarkers = true;
+  export let contextWordsBefore = 20;
+  export let contextWordsAfter = 10;
 
   const dispatch = createEventDispatcher();
 
@@ -103,6 +106,37 @@
         role="switch"
         aria-checked={showContextEnabled}
         aria-label="Toggle show context when paused"
+      >
+        <span class="toggle-thumb"></span>
+      </button>
+    </div>
+
+    {#if showContextEnabled}
+      <div class="sub-control">
+        <div class="control-header">
+          <span>Words before</span>
+          <span class="control-value">{contextWordsBefore}</span>
+        </div>
+        <input type="range" min="0" max="60" step="5" bind:value={contextWordsBefore} class="slider slider-sm">
+      </div>
+      <div class="sub-control">
+        <div class="control-header">
+          <span>Words after</span>
+          <span class="control-value">{contextWordsAfter}</span>
+        </div>
+        <input type="range" min="0" max="60" step="5" bind:value={contextWordsAfter} class="slider slider-sm">
+      </div>
+    {/if}
+
+    <div class="toggle-row">
+      <span class="toggle-label">Show chapter markers</span>
+      <button
+        class="toggle"
+        class:active={showChapterMarkers}
+        on:click={() => showChapterMarkers = !showChapterMarkers}
+        role="switch"
+        aria-checked={showChapterMarkers}
+        aria-label="Toggle chapter markers on progress bar"
       >
         <span class="toggle-thumb"></span>
       </button>

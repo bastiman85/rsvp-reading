@@ -8,14 +8,37 @@
   export let timeRemaining = '0:00';
   export let minimal = false;
   export let clickable = false;
+  export let chapters = [];
 
   const dispatch = createEventDispatcher();
+
+  $: chapterTimeRemaining = getChapterTimeRemaining(currentWord, chapters, totalWords, wpm);
+
+  function getChapterTimeRemaining(currentIdx, chaps, total, speed) {
+    if (!chaps || chaps.length === 0 || total <= 0 || speed <= 0) return null;
+    // Find next chapter after current position
+    const next = chaps.find(c => c.wordIndex > currentIdx);
+    if (!next) return null;
+    const wordsLeft = next.wordIndex - currentIdx;
+    const minutes = wordsLeft / speed;
+    const totalSeconds = Math.round(minutes * 60);
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return { time: `${m}:${s.toString().padStart(2, '0')}`, title: next.title };
+  }
 
   function handleClick(event) {
     if (!clickable) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const percentage = (x / rect.width) * 100;
+    dispatch('seek', { percentage: Math.max(0, Math.min(100, percentage)) });
+  }
+
+  function handleChapterClick(event, chapter) {
+    event.stopPropagation();
+    if (totalWords <= 0) return;
+    const percentage = (chapter.wordIndex / totalWords) * 100;
     dispatch('seek', { percentage: Math.max(0, Math.min(100, percentage)) });
   }
 
@@ -53,6 +76,17 @@
     on:keydown={handleKeydown}
   >
     <div class="progress-bar" style="width: {progress}%"></div>
+    {#each chapters as chapter}
+      {#if totalWords > 0 && (!minimal || clickable)}
+        <button
+          class="chapter-marker"
+          style="left: {(chapter.wordIndex / totalWords) * 100}%"
+          on:click={(e) => handleChapterClick(e, chapter)}
+        >
+          <span class="chapter-tooltip">{chapter.title}</span>
+        </button>
+      {/if}
+    {/each}
   </div>
 
   {#if !minimal}
@@ -60,6 +94,10 @@
       <span class="stat">{currentWord} / {totalWords}</span>
       <span class="stat wpm">{wpm} WPM</span>
       <span class="stat">{timeRemaining}</span>
+    </div>
+  {:else if clickable && chapterTimeRemaining}
+    <div class="chapter-countdown">
+      {chapterTimeRemaining.time} to {chapterTimeRemaining.title}
     </div>
   {/if}
 </div>
@@ -73,7 +111,8 @@
     height: 3px;
     background: #222;
     border-radius: 2px;
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
   }
 
   .progress-container.clickable {
@@ -100,6 +139,66 @@
     height: 100%;
     background: linear-gradient(90deg, #ff4444, #ff6666);
     transition: width 0.1s linear;
+    border-radius: 2px;
+  }
+
+  .chapter-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: #888;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    z-index: 2;
+    overflow: visible;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+
+  .chapter-marker:hover {
+    background: #fff;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+
+  .chapter-tooltip {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #fff;
+    font: 400 0.75rem/1.4 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 0.35rem 0.7rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+    word-spacing: 0.05em;
+    width: max-content;
+  }
+
+  .chapter-marker:hover .chapter-tooltip {
+    display: block;
+  }
+
+  /* On wider screens, use ticks instead of dots */
+  @media (min-width: 600px) {
+    .chapter-marker {
+      width: 2px;
+      height: 14px;
+      border-radius: 1px;
+    }
+
+    .chapter-marker:hover {
+      background: #fff;
+      transform: translate(-50%, -50%) scaleY(1.3);
+    }
   }
 
   .stats {
@@ -116,6 +215,14 @@
 
   .wpm {
     color: #ff4444;
+  }
+
+  .chapter-countdown {
+    text-align: center;
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: #555;
+    font-family: monospace;
   }
 
   @media (max-width: 600px) {

@@ -14,6 +14,15 @@
     hasSession,
     getSessionSummary
   } from './lib/progress-storage.js';
+  import {
+    getBooks,
+    syncBooks,
+    saveBook,
+    updateBookProgress,
+    deleteBook,
+    getBook,
+    renameBook
+  } from './lib/library-storage.js';
   import RSVPDisplay from './lib/components/RSVPDisplay.svelte';
   import Controls from './lib/components/Controls.svelte';
   import Settings from './lib/components/Settings.svelte';
@@ -42,6 +51,14 @@
   let isSearchMode = false;
   let chapters = [];
   let currentChapterIndex = -1;
+  let showLibrary = false;
+  let libraryBooks = [];
+  let currentBookId = null;
+  let currentBookTitle = '';
+  let showWpmIndicator = false;
+  let wpmIndicatorKey = 0;
+  let wpmIndicatorTimeout = null;
+  let wasPlayingBeforeSkip = false;
 
   // Settings
   let wordsPerMinute = 300;
@@ -53,6 +70,9 @@
   let punctuationPauseMultiplier = 2;
   let wordLengthWPMMultiplier = 5;
   let showContextEnabled = true;
+  let showChapterMarkers = true;
+  let contextWordsBefore = 20;
+  let contextWordsAfter = 10;
 
   // Animation
   let wordOpacity = 1;
@@ -63,11 +83,11 @@
   $: activeIndex = Math.max(0, currentWordIndex - 1);
   $: currentWord = words[activeIndex] || (words.length > 0 ? words[0] : '');
   $: wordFrame = extractWordFrame(words, activeIndex, frameWordCount);
-  $: contextBefore = isPaused ? words.slice(Math.max(0, activeIndex - 60), activeIndex) : [];
-  $: contextAfter = isPaused ? words.slice(activeIndex + 1, Math.min(words.length, activeIndex + 61)) : [];
+  $: contextBefore = isPaused ? words.slice(Math.max(0, activeIndex - contextWordsBefore), activeIndex) : [];
+  $: contextAfter = isPaused ? words.slice(activeIndex + 1, Math.min(words.length, activeIndex + contextWordsAfter + 1)) : [];
   $: timeRemaining = formatTimeRemaining(words.length - currentWordIndex, wordsPerMinute);
   $: isFocusMode = isPlaying || isPaused;
-  $: updateCurrentChapter();
+  $: currentWordIndex, updateCurrentChapter();
 
 
   function detectChapters(text) {
@@ -174,6 +194,9 @@
     isPlaying = false;
     isPaused = true;
     isManualPause = true;
+    if (currentBookId && words.length > 0) {
+      updateBookProgress(currentBookId, currentWordIndex, words.length);
+    }
     if (intervalId) {
       clearTimeout(intervalId);
       intervalId = null;
@@ -193,12 +216,13 @@
     isPlaying = false;
     isPaused = false;
     isManualPause = false;
-    currentWordIndex = 0;
-    progress = 0;
     wordOpacity = 1;
     if (intervalId) {
       clearTimeout(intervalId);
       intervalId = null;
+    }
+    if (currentBookId && words.length > 0) {
+      updateBookProgress(currentBookId, currentWordIndex, words.length);
     }
   }
 
@@ -222,9 +246,25 @@
     loadingMessage = `Loading ${file.name}...`;
 
     try {
-      text = await parseFile(file);
+      const result = await parseFile(file);
+      text = result.text;
       stop();
       parseText();
+      if (result.chapters && result.chapters.length > 0) {
+        chapters = result.chapters;
+      }
+      // Auto-save to library
+      const bookId = saveBook({
+        id: Date.now().toString(),
+        title: result.title || file.name.replace(/\.[^/.]+$/, ''),
+        text,
+        chapters,
+        currentWordIndex: 0,
+        totalWords: words.length
+      });
+      currentBookId = bookId;
+      currentBookTitle = result.title || file.name.replace(/\.[^/.]+$/, '');
+      libraryBooks = getBooks();
       showTextInput = false;
       loadingMessage = '';
     } catch (error) {
@@ -234,6 +274,49 @@
     } finally {
       isLoadingFile = false;
     }
+  }
+
+  function openLibrary() {
+    if (currentBookId && words.length > 0) {
+      updateBookProgress(currentBookId, currentWordIndex, words.length);
+    }
+    libraryBooks = getBooks();
+    showLibrary = true;
+    showSettings = false;
+    showTextInput = false;
+    showJumpTo = false;
+  }
+
+  function loadBookFromLibrary(bookId) {
+    // Save current book progress before switching
+    if (currentBookId && words.length > 0) {
+      updateBookProgress(currentBookId, currentWordIndex, words.length);
+    }
+    const book = getBook(bookId);
+    if (!book) return;
+    text = book.text;
+    stop();
+    parseText();
+    currentWordIndex = book.currentWordIndex || 0;
+    progress = words.length > 0 ? (currentWordIndex / words.length) * 100 : 0;
+    chapters = book.chapters || [];
+    currentBookId = book.id;
+    currentBookTitle = book.title;
+    showLibrary = false;
+  }
+
+  function handleRenameBook(bookId, event) {
+    const newTitle = event.target.value.trim();
+    if (newTitle) {
+      renameBook(bookId, newTitle);
+      libraryBooks = getBooks();
+    }
+  }
+
+  function removeBookFromLibrary(bookId) {
+    deleteBook(bookId);
+    if (currentBookId === bookId) currentBookId = null;
+    libraryBooks = getBooks();
   }
 
   function saveCurrentSession() {
@@ -386,6 +469,13 @@
     progress = (currentWordIndex / words.length) * 100;
   }
 
+  function flashWpm() {
+    showWpmIndicator = true;
+    wpmIndicatorKey++;
+    if (wpmIndicatorTimeout) clearTimeout(wpmIndicatorTimeout);
+    wpmIndicatorTimeout = setTimeout(() => { showWpmIndicator = false; }, 1000);
+  }
+
   function handleKeydown(e) {
     if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
 
@@ -432,45 +522,70 @@
       case 'ArrowUp':
         e.preventDefault();
         wordsPerMinute = Math.min(1000, wordsPerMinute + 25);
+        flashWpm();
         break;
       case 'ArrowDown':
         e.preventDefault();
         wordsPerMinute = Math.max(50, wordsPerMinute - 25);
+        flashWpm();
         break;
       case 'ArrowLeft':
         e.preventDefault();
-        if (currentWordIndex > 1) {
-          currentWordIndex = Math.max(0, currentWordIndex - 2);
+        if (isPlaying && !wasPlayingBeforeSkip) {
+          wasPlayingBeforeSkip = true;
+          pause();
+        }
+        {
+          const step = e.shiftKey ? 5 : 1;
+          currentWordIndex = Math.max(0, currentWordIndex - step);
           progress = (currentWordIndex / words.length) * 100;
         }
         break;
       case 'ArrowRight':
         e.preventDefault();
-        if (currentWordIndex < words.length) {
-          progress = ((currentWordIndex + 1) / words.length) * 100;
-          currentWordIndex++;
+        if (isPlaying && !wasPlayingBeforeSkip) {
+          wasPlayingBeforeSkip = true;
+          pause();
+        }
+        {
+          const step = e.shiftKey ? 5 : 1;
+          currentWordIndex = Math.min(words.length, currentWordIndex + step);
+          progress = (currentWordIndex / words.length) * 100;
         }
         break;
     }
   }
 
-  onMount(() => {
-    parseText();
-    window.addEventListener('keydown', handleKeydown);
-
-    // Check for saved session
-    if (hasSession()) {
-      savedSessionInfo = getSessionSummary();
-      if (savedSessionInfo) {
-        showSavedSessionPrompt = true;
-      }
+  function handleKeyup(e) {
+    if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && wasPlayingBeforeSkip) {
+      wasPlayingBeforeSkip = false;
+      resume();
     }
+  }
+
+  onMount(async () => {
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('keyup', handleKeyup);
+
+    // Sync from server first, fall back to cache
+    libraryBooks = await syncBooks();
+    loadLastBook();
   });
+
+  function loadLastBook() {
+    if (libraryBooks.length > 0) {
+      const lastBook = libraryBooks.reduce((a, b) => (a.savedAt || 0) > (b.savedAt || 0) ? a : b);
+      loadBookFromLibrary(lastBook.id);
+    } else {
+      parseText();
+    }
+  }
 
   onDestroy(() => {
     if (intervalId) clearTimeout(intervalId);
     if (fadeTimeoutId) clearTimeout(fadeTimeoutId);
     window.removeEventListener('keydown', handleKeydown);
+    window.removeEventListener('keyup', handleKeyup);
   });
 </script>
 
@@ -478,35 +593,23 @@
   <!-- Header - hidden during focus mode -->
   {#if !isFocusMode}
     <header>
-  <h1>RSVP Reader</h1>
-
-  <p style="color: red; font-size: 12px;">
-    Chapters detected: {chapters.length}
-  </p>
-
-      
+      <h1>RSVP Reader</h1>
+      {#if currentBookTitle}
+        <span class="current-book-title">{currentBookTitle}</span>
+      {/if}
+      {#if chapters.length > 0}
+        <select
+          class="chapter-select"
+          bind:value={currentChapterIndex}
+          on:change={handleChapterChange}
+        >
+          <option value={-1} disabled>Jump to chapter</option>
+          {#each chapters as chapter, index}
+            <option value={index}>{chapter.title}</option>
+          {/each}
+        </select>
+      {/if}
       <div class="header-actions">
-        {#if chapters.length > 0}
-  <select
-    class="chapter-select"
-    bind:value={currentChapterIndex}
-    on:change={handleChapterChange}
-
-
-  >
-      <option value="" disabled>
-       Jump to chapter
-      </option>
-
-
-     {#each chapters as chapter, index}
-      <option value={index}>
-         {chapter.title}
-         </option>
-        {/each}
-     </select>
-    {/if}
-
         <button
           class="icon-btn"
           on:click={() => { showJumpTo = !showJumpTo; showSettings = false; showTextInput = false; }}
@@ -539,7 +642,17 @@
         </button>
         <button
           class="icon-btn"
-          on:click={() => { showSettings = !showSettings; showTextInput = false; showJumpTo = false; }}
+          on:click={openLibrary}
+          title="Library"
+          class:active={showLibrary}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+          </svg>
+        </button>
+        <button
+          class="icon-btn"
+          on:click={() => { showSettings = !showSettings; showTextInput = false; showJumpTo = false; showLibrary = false; }}
           title="Settings"
           class:active={showSettings}
         >
@@ -552,6 +665,51 @@
   {/if}
 
   <!-- Panels -->
+  {#if showLibrary && !isFocusMode}
+    <div class="panel-overlay" on:click|self={() => showLibrary = false} role="presentation">
+      <div class="library-panel">
+        <h3>Library</h3>
+        {#if libraryBooks.length === 0}
+          <p class="library-empty">No books yet. Load a file to add it to your library.</p>
+        {:else}
+          <div class="library-list">
+            {#each libraryBooks as book}
+              <div class="library-item" class:active={book.id === currentBookId}>
+                <div class="library-item-main">
+                  <input
+                    class="library-title-input"
+                    value={book.title}
+                    on:change={(e) => handleRenameBook(book.id, e)}
+                    on:click|stopPropagation
+                    on:keydown|stopPropagation={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                  />
+                  <button class="library-open-btn" on:click={() => loadBookFromLibrary(book.id)}>Open</button>
+                  <div class="library-meta">
+                    <span class="library-progress-text">
+                      {book.totalWords > 0 ? Math.round((book.currentWordIndex / book.totalWords) * 100) : 0}%
+                    </span>
+                    <span class="library-words">{book.totalWords} words</span>
+                  </div>
+                  <div class="library-progress-bar">
+                    <div class="library-progress-fill" style="width: {book.totalWords > 0 ? (book.currentWordIndex / book.totalWords) * 100 : 0}%"></div>
+                  </div>
+                </div>
+                <button class="library-delete" on:click|stopPropagation={() => removeBookFromLibrary(book.id)} title="Remove">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                  </svg>
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+        <div class="library-actions">
+          <button class="secondary" on:click={() => showLibrary = false}>Close</button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   {#if showTextInput && !isFocusMode}
     <div class="panel-overlay">
       <TextInput
@@ -579,6 +737,9 @@
         bind:pauseDuration
         bind:frameWordCount
         bind:showContextEnabled
+        bind:showChapterMarkers
+        bind:contextWordsBefore
+        bind:contextWordsAfter
         on:close={() => showSettings = false}
       />
     </div>
@@ -690,7 +851,9 @@
   {/if}
 
   <!-- Main Display -->
-  <div class="display-area">
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="display-area" on:click={() => { if (isPlaying) pause(); else if (isPaused) resume(); }}>
     <RSVPDisplay
       word={currentWord}
       wordGroup={wordFrame.subset}
@@ -715,8 +878,14 @@
       {timeRemaining}
       minimal={isFocusMode}
       clickable={!isPlaying}
+      chapters={showChapterMarkers ? chapters : []}
       on:seek={handleProgressClick}
     />
+    {#if showWpmIndicator && isFocusMode}
+      {#key wpmIndicatorKey}
+        <div class="wpm-indicator">{wordsPerMinute} WPM</div>
+      {/key}
+    {/if}
 
     <div class="controls-area">
       <Controls
@@ -737,23 +906,45 @@
         <kbd>Space</kbd> Play
         <kbd>Esc</kbd> Exit
         <kbd>↑↓</kbd> Speed
-        <kbd>←→</kbd> Skip
+        <kbd>←→</kbd> Word
         <kbd>G</kbd> Jump
         <kbd>Ctrl+S</kbd> Save
       </div>
       <div class="touch-controls mobile-only">
         <button class="touch-btn" on:click={() => currentWordIndex = Math.max(0, currentWordIndex - 5)} title="Back 5 words">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.41 7.41L17 6l-6 6 6 6 1.41-1.41L13.83 12z"/><path d="M12.41 7.41L11 6l-6 6 6 6 1.41-1.41L7.83 12z"/></svg>
+        </button>
+        <button class="touch-btn" on:click={() => currentWordIndex = Math.max(0, currentWordIndex - 1)} title="Back 1 word">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
         </button>
-        <button class="touch-btn" on:click={() => wordsPerMinute = Math.max(50, wordsPerMinute - 50)} title="Slower">
+        <button class="touch-btn" on:click={() => wordsPerMinute = Math.max(50, wordsPerMinute - 25)} title="Slower">
           <span>−WPM</span>
         </button>
         <span class="wpm-display">{wordsPerMinute}</span>
-        <button class="touch-btn" on:click={() => wordsPerMinute = Math.min(1000, wordsPerMinute + 50)} title="Faster">
+        <button class="touch-btn" on:click={() => wordsPerMinute = Math.min(1000, wordsPerMinute + 25)} title="Faster">
           <span>+WPM</span>
         </button>
-        <button class="touch-btn" on:click={() => currentWordIndex = Math.min(words.length, currentWordIndex + 5)} title="Forward 5 words">
+        <button class="touch-btn" on:click={() => currentWordIndex = Math.min(words.length, currentWordIndex + 1)} title="Forward 1 word">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+        </button>
+        <button class="touch-btn" on:click={() => currentWordIndex = Math.min(words.length, currentWordIndex + 5)} title="Forward 5 words">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.59 16.59L7 18l6-6-6-6-1.41 1.41L10.17 12z"/><path d="M11.59 16.59L13 18l6-6-6-6-1.41 1.41L16.17 12z"/></svg>
+        </button>
+      </div>
+    {/if}
+    {#if isPaused && isFocusMode}
+      <div class="touch-controls mobile-only">
+        <button class="touch-btn" on:click={() => currentWordIndex = Math.max(0, currentWordIndex - 5)} title="Back 5 words">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.41 7.41L17 6l-6 6 6 6 1.41-1.41L13.83 12z"/><path d="M12.41 7.41L11 6l-6 6 6 6 1.41-1.41L7.83 12z"/></svg>
+        </button>
+        <button class="touch-btn" on:click={() => currentWordIndex = Math.max(0, currentWordIndex - 1)} title="Back 1 word">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+        <button class="touch-btn" on:click={() => currentWordIndex = Math.min(words.length, currentWordIndex + 1)} title="Forward 1 word">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+        </button>
+        <button class="touch-btn" on:click={() => currentWordIndex = Math.min(words.length, currentWordIndex + 5)} title="Forward 5 words">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.59 16.59L7 18l6-6-6-6-1.41 1.41L10.17 12z"/><path d="M11.59 16.59L13 18l6-6-6-6-1.41 1.41L16.17 12z"/></svg>
         </button>
       </div>
     {/if}
@@ -769,6 +960,7 @@
     position: fixed;
     width: 100%;
     height: 100%;
+    touch-action: manipulation;
   }
 
   main {
@@ -791,8 +983,9 @@
 
   header {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 0.5rem;
     margin-bottom: 1rem;
     flex-shrink: 0;
   }
@@ -802,6 +995,16 @@
     font-weight: 400;
     color: #555;
     margin: 0;
+  }
+
+  .current-book-title {
+    font-size: 0.85rem;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+    margin-left: auto;
   }
 
   .header-actions {
@@ -854,10 +1057,25 @@
   .display-area {
     flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .wpm-indicator {
+    color: #555;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    text-align: center;
+    animation: wpm-fade 1s ease-out forwards;
+  }
+
+  @keyframes wpm-fade {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
   }
 
   .bottom-bar {
@@ -1202,4 +1420,151 @@
   background: #111;
   color: #fff;
 }
+
+  .library-panel {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 450px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .library-panel h3 {
+    margin: 0 0 1rem 0;
+    color: #fff;
+    font-size: 1.1rem;
+  }
+
+  .library-empty {
+    color: #666;
+    text-align: center;
+    padding: 2rem 0;
+  }
+
+  .library-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .library-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid #333;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .library-item:hover {
+    border-color: #555;
+  }
+
+  .library-item.active {
+    border-color: #ff4444;
+  }
+
+  .library-item-main {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 0.75rem;
+    text-align: left;
+    min-width: 0;
+  }
+
+  .library-title-input {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.95rem;
+    padding: 0.2rem 0.3rem;
+    margin-bottom: 0.25rem;
+    box-sizing: border-box;
+  }
+
+  .library-title-input:hover {
+    border-color: #444;
+  }
+
+  .library-title-input:focus {
+    border-color: #ff4444;
+    outline: none;
+    background: #1a1a1a;
+  }
+
+  .library-open-btn {
+    background: #222;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    margin-bottom: 0.4rem;
+    transition: all 0.2s;
+  }
+
+  .library-open-btn:hover {
+    background: #ff4444;
+    border-color: #ff4444;
+    color: #fff;
+  }
+
+  .library-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 0.4rem;
+  }
+
+  .library-progress-text {
+    color: #ff4444;
+  }
+
+  .library-progress-bar {
+    height: 3px;
+    background: #333;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .library-progress-fill {
+    height: 100%;
+    background: #ff4444;
+    transition: width 0.3s;
+  }
+
+  .library-delete {
+    background: transparent;
+    border: none;
+    color: #555;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  .library-delete:hover {
+    color: #ff4444;
+  }
+
+  .library-delete svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .library-actions {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+  }
 </style>

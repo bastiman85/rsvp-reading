@@ -45,8 +45,30 @@ export async function parseEPUB(file) {
 
   await book.ready
   await book.loaded.spine
+  await book.loaded.navigation
+
+  // Build a map of href -> TOC label from the EPUB's built-in table of contents
+  const tocMap = new Map()
+  function walkToc(items) {
+    for (const item of items) {
+      if (item.href && item.label) {
+        // Normalize href by stripping fragment identifiers for matching
+        const baseHref = item.href.split('#')[0]
+        if (!tocMap.has(baseHref)) {
+          tocMap.set(baseHref, item.label.trim())
+        }
+      }
+      if (item.subitems && item.subitems.length > 0) {
+        walkToc(item.subitems)
+      }
+    }
+  }
+  if (book.navigation && book.navigation.toc) {
+    walkToc(book.navigation.toc)
+  }
 
   let fullText = ''
+  const chapters = []
 
   // Get spine items - the API varies between versions
   const spineItems = book.spine?.spineItems || book.spine?.items || []
@@ -56,6 +78,13 @@ export async function parseEPUB(file) {
       // Load the section content using the book's load method
       const href = item.href || item.url
       if (!href) continue
+
+      // Check if this spine item corresponds to a TOC entry
+      const baseHref = href.split('#')[0]
+      const tocLabel = tocMap.get(baseHref)
+
+      // Count words so far to get the word index for this chapter
+      const wordIndexBefore = fullText.split(/\s+/).filter(w => w.length > 0).length
 
       const contents = await book.load(href)
       if (contents) {
@@ -69,15 +98,24 @@ export async function parseEPUB(file) {
         } else if (contents.documentElement) {
           text = contents.documentElement.textContent || ''
         }
-        fullText += text + ' '
+
+        if (text.trim()) {
+          if (tocLabel) {
+            chapters.push({
+              title: tocLabel,
+              wordIndex: wordIndexBefore
+            })
+          }
+          fullText += text + ' '
+        }
       }
     } catch (e) {
       console.warn('Could not load section:', e)
     }
   }
 
-  // Clean up the text
-  return cleanText(fullText)
+  const title = book.package?.metadata?.title || ''
+  return { text: cleanText(fullText), chapters, title }
 }
 
 /**
@@ -104,7 +142,7 @@ export async function parseFile(file) {
   const fileName = file.name.toLowerCase()
 
   if (fileName.endsWith('.pdf')) {
-    return parsePDF(file)
+    return { text: await parsePDF(file), chapters: [] }
   } else if (fileName.endsWith('.epub')) {
     return parseEPUB(file)
   } else {
