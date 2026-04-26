@@ -1,5 +1,8 @@
+name: rsvp-reader
+
 services:
   rsvp:
+    container_name: rsvp-reader
     build:
       context: ..
       dockerfile: docker/Dockerfile
