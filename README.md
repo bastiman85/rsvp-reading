@@ -2,6 +2,8 @@
 
 A Svelte-based Rapid Serial Visual Presentation (RSVP) reader for speed reading with PDF and EPUB support.
 
+> This is a fork with additional features and improvements — see [Fork Changes](#fork-changes) for details.
+
 ## Online version / DEMO
 
 Link: https://rsvp.n0name.eu/
