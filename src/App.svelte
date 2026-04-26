@@ -39,6 +39,7 @@
   let text = `Rapid serial visual presentation (RSVP) is a scientific method for studying the timing of vision. In RSVP, a sequence of stimuli is shown to an observer at one location in their visual field. This technique has been adapted for speed reading applications, where words are displayed one at a time at a fixed point, eliminating the need for eye movements and potentially increasing reading speed significantly.`;
   let words = [];
   let currentWordIndex = 0;
+  let lastSyncedIndex = 0;
   let isPlaying = false;
   let isPaused = false;
   let isManualPause = false;
@@ -212,6 +213,7 @@
     isPlaying = false;
     isPaused = true;
     isManualPause = true;
+    lastSyncedIndex = currentWordIndex;
     if (currentBookId && words.length > 0) {
       updateBookProgress(currentBookId, currentWordIndex, words.length);
     }
@@ -239,13 +241,28 @@
       clearTimeout(intervalId);
       intervalId = null;
     }
+    lastSyncedIndex = currentWordIndex;
     if (currentBookId && words.length > 0) {
       updateBookProgress(currentBookId, currentWordIndex, words.length);
     }
   }
 
-  function restart() {
-    stop();
+  function restartAtSync() {
+    currentWordIndex = lastSyncedIndex;
+    start();
+  }
+
+  function restartAtChapter() {
+    if (currentChapterIndex >= 0 && chapters[currentChapterIndex]) {
+      currentWordIndex = chapters[currentChapterIndex].wordIndex;
+    } else {
+      currentWordIndex = 0;
+    }
+    start();
+  }
+
+  function restartAtBeginning() {
+    currentWordIndex = 0;
     start();
   }
 
@@ -316,6 +333,7 @@
     stop();
     parseText();
     currentWordIndex = book.currentWordIndex || 0;
+    lastSyncedIndex = currentWordIndex;
     progress = words.length > 0 ? (currentWordIndex / words.length) * 100 : 0;
     chapters = book.chapters || [];
     currentBookId = book.id;
@@ -367,6 +385,7 @@
     text = session.text;
     parseText();
     currentWordIndex = session.currentWordIndex;
+    lastSyncedIndex = currentWordIndex;
     progress = (currentWordIndex / words.length) * 100;
 
     if (session.settings) {
@@ -940,11 +959,15 @@
         {isPaused}
         canPlay={words.length > 0}
         minimal={isFocusMode}
+        hasChapters={chapters.length > 0}
+        {lastSyncedIndex}
         on:play={start}
         on:pause={pause}
         on:resume={resume}
         on:stop={stop}
-        on:restart={restart}
+        on:restartAtSync={restartAtSync}
+        on:restartAtChapter={restartAtChapter}
+        on:restartAtBeginning={restartAtBeginning}
       />
     </div>
 

@@ -42,6 +42,10 @@
     <div class="marker-line bottom"></div>
   </div>
 
+  {#if showContext && contextBefore.length > 0}
+    <div class="mobile-context-above" style="direction: {isRtl ? 'rtl' : 'ltr'}">{contextBefore.join(' ')}</div>
+  {/if}
+
   <div
     class="word-container"
     class:multi-mode={useMultiMode}
@@ -89,6 +93,10 @@
       <span class="placeholder">Ready</span>
     {/if}
   </div>
+
+  {#if showContext && contextAfter.length > 0}
+    <div class="mobile-context-below" style="direction: {isRtl ? 'rtl' : 'ltr'}">{contextAfter.join(' ')}</div>
+  {/if}
 </div>
 
 <style>
@@ -211,6 +219,11 @@
     line-height: 1;
   }
 
+  .mobile-context-above,
+  .mobile-context-below {
+    display: none;
+  }
+
   @media (max-width: 600px) {
     .rsvp-display {
       min-height: 200px;
@@ -222,6 +235,30 @@
 
     .word-container.multi-mode {
       font-size: clamp(0.9rem, 3.5vw, 2rem);
+    }
+
+    .rsvp-display:has(.is-paused) {
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .mobile-context-above,
+    .mobile-context-below {
+      display: block;
+      color: #888;
+      font-size: clamp(0.7rem, 3vw, 1rem);
+      font-weight: 300;
+      opacity: 0.7;
+      text-align: center;
+      padding: 0.4rem 1.5rem;
+      line-height: 1.4;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', monospace;
+      width: 100%;
+    }
+
+    .word-container.is-paused .paused-context {
+      display: none;
     }
   }
 
