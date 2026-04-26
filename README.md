@@ -59,7 +59,9 @@ cd docker
 docker compose up -d
 ```
 
-The app will be available at http://localhost:8080
+The app will be available at http://localhost:3000 with the API server and book library storage.
+
+Book data is persisted in a Docker volume (`rsvp-data`) and survives restarts and rebuilds.
 
 To rebuild after changes:
 
