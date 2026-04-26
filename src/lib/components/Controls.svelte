@@ -7,6 +7,7 @@
   export let minimal = false;
   export let hasChapters = false;
   export let lastSyncedIndex = 0;
+  export let lastSyncedDiff = 0;
 
   const dispatch = createEventDispatcher();
   let showRestartMenu = false;
@@ -20,79 +21,44 @@
 <svelte:window on:click={() => showRestartMenu = false} />
 
 <div class="controls" class:minimal>
-  {#if !isPlaying && !isPaused}
-    <button
-      class="control-btn play"
-      on:click={() => dispatch('play')}
-      disabled={!canPlay}
-      title="Play (Space)"
-    >
-      {#if minimal}
+  {#if !isPlaying}
+    {#if !isPaused}
+      <button
+        class="control-btn play"
+        on:click={() => dispatch('play')}
+        disabled={!canPlay}
+        title="Play (Space)"
+      >
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M8 5v14l11-7z"/>
         </svg>
-      {:else}
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
-        <span>Play</span>
-      {/if}
-    </button>
-  {:else if isPlaying}
-    <button
-      class="control-btn pause"
-      on:click={() => dispatch('pause')}
-      title="Pause (Space)"
-    >
-      {#if minimal}
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-        </svg>
-      {:else}
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-        </svg>
-        <span>Pause</span>
-      {/if}
-    </button>
-  {:else}
-    <button
-      class="control-btn play"
-      on:click={() => dispatch('resume')}
-      title="Resume (Space)"
-    >
-      {#if minimal}
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
-      {:else}
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
-        <span>Resume</span>
-      {/if}
-    </button>
-  {/if}
-
-  <button
-    class="control-btn stop"
-    on:click={() => dispatch('stop')}
-    disabled={!isPlaying && !isPaused}
-    title="Stop (Esc)"
-  >
-    {#if minimal}
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M6 6h12v12H6z"/>
-      </svg>
+        {#if !minimal}<span>Play</span>{/if}
+      </button>
     {:else}
+      <button
+        class="control-btn play"
+        on:click={() => dispatch('resume')}
+        title="Resume (Space)"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+        {#if !minimal}<span>Resume</span>{/if}
+      </button>
+    {/if}
+
+    <button
+      class="control-btn stop"
+      on:click={() => dispatch('stop')}
+      disabled={!isPaused}
+      title="Stop (Esc)"
+    >
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M6 6h12v12H6z"/>
       </svg>
-      <span>Stop</span>
-    {/if}
-  </button>
+      {#if !minimal}<span>Stop</span>{/if}
+    </button>
 
-  {#if !minimal}
     <div class="restart-wrapper" on:click|stopPropagation role="presentation">
       <button
         class="control-btn restart"
@@ -104,24 +70,29 @@
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
         </svg>
-        <span>Restart</span>
+        {#if !minimal}<span>Restart</span>{/if}
       </button>
 
       {#if showRestartMenu}
         <div class="restart-menu">
           <button class="menu-item" on:click={() => selectRestart('restartAtSync')}>
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18z"/></svg>
-            Senaste positionen
+            Last position
+            {#if lastSyncedDiff !== 0}
+              <span class="menu-item-diff" class:negative={lastSyncedDiff < 0}>
+                {lastSyncedDiff > 0 ? `(+${lastSyncedDiff})` : `(${lastSyncedDiff})`}
+              </span>
+            {/if}
           </button>
           {#if hasChapters}
             <button class="menu-item" on:click={() => selectRestart('restartAtChapter')}>
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1z"/></svg>
-              Kapitelstart
+              Chapter start
             </button>
           {/if}
           <button class="menu-item" on:click={() => selectRestart('restartAtBeginning')}>
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-            Bokens början
+            Beginning of book
           </button>
         </div>
       {/if}
@@ -260,6 +231,18 @@
 
   .menu-item:hover svg {
     opacity: 1;
+  }
+
+  .menu-item-diff {
+    margin-left: auto;
+    font-size: 0.8rem;
+    opacity: 0.6;
+    color: #4caf50;
+    padding-left: 0.5rem;
+  }
+
+  .menu-item-diff.negative {
+    color: #ff7070;
   }
 
   @media (max-width: 600px) {

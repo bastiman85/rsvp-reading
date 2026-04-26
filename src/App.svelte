@@ -40,6 +40,7 @@
   let words = [];
   let currentWordIndex = 0;
   let lastSyncedIndex = 0;
+  let showPauseHint = false;
   let isPlaying = false;
   let isPaused = false;
   let isManualPause = false;
@@ -105,6 +106,7 @@
   $: contextAfter = isPaused ? words.slice(activeIndex + 1, Math.min(words.length, activeIndex + contextWordsAfter + 1)) : [];
   $: timeRemaining = formatTimeRemaining(words.length - currentWordIndex, wordsPerMinute);
   $: isFocusMode = isPlaying || isPaused;
+  $: lastSyncedDiff = lastSyncedIndex - currentWordIndex;
   $: currentWordIndex, updateCurrentChapter();
 
 
@@ -201,12 +203,22 @@
   function start() {
     if (words.length === 0) parseText();
     if (words.length === 0) return;
+    if (!localStorage.getItem('rsvp-pause-hint-seen')) {
+      showPauseHint = true;
+      return;
+    }
     isPlaying = true;
     isPaused = false;
     isManualPause = false;
     showSettings = false;
     showTextInput = false;
     showNextWord();
+  }
+
+  function continueFromHint() {
+    localStorage.setItem('rsvp-pause-hint-seen', '1');
+    showPauseHint = false;
+    start();
   }
 
   function pause() {
@@ -961,6 +973,7 @@
         minimal={isFocusMode}
         hasChapters={chapters.length > 0}
         {lastSyncedIndex}
+        {lastSyncedDiff}
         on:play={start}
         on:pause={pause}
         on:resume={resume}
@@ -1019,6 +1032,20 @@
       </div>
     {/if}
   </div>
+
+  {#if showPauseHint}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="pause-hint-overlay" on:click|self={continueFromHint}>
+      <div class="pause-hint-dialog">
+        <div class="pause-hint-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+        </div>
+        <p>Tap anywhere on the screen to pause. Tap again to resume.</p>
+        <button class="pause-hint-btn" on:click={continueFromHint}>Continue</button>
+      </div>
+    </div>
+  {/if}
 </main>
 
 <style>
@@ -1636,5 +1663,58 @@
     margin-top: 1rem;
     display: flex;
     justify-content: flex-end;
+  }
+
+  .pause-hint-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+  }
+
+  .pause-hint-dialog {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 340px;
+    width: 90%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+  }
+
+  .pause-hint-icon svg {
+    width: 40px;
+    height: 40px;
+    color: #ff4444;
+  }
+
+  .pause-hint-dialog p {
+    margin: 0;
+    color: #ccc;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .pause-hint-btn {
+    background: #ff4444;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .pause-hint-btn:hover {
+    background: #ff6666;
   }
 </style>
