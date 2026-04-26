@@ -79,8 +79,11 @@
   let intervalId = null;
   let fadeTimeoutId = null;
 
+  // Overrides activeIndex display when jumping to a position (cleared on playback)
+  let pendingDisplay = null;
+
   // Derived state
-  $: activeIndex = Math.max(0, currentWordIndex - 1);
+  $: activeIndex = pendingDisplay !== null ? pendingDisplay : Math.max(0, currentWordIndex - 1);
   $: currentWord = words[activeIndex] || (words.length > 0 ? words[0] : '');
   $: wordFrame = extractWordFrame(words, activeIndex, frameWordCount);
   $: contextBefore = isPaused ? words.slice(Math.max(0, activeIndex - contextWordsBefore), activeIndex) : [];
@@ -144,6 +147,7 @@
   }
 
   function showNextWord() {
+    pendingDisplay = null;
     if (currentWordIndex >= words.length) {
       stop();
       return;
@@ -405,7 +409,8 @@
 
    const chapter = chapters[index];
    currentChapterIndex = index;
-   currentWordIndex = Math.min(words.length, chapter.wordIndex + 1);
+   currentWordIndex = Math.max(0, Math.min(words.length, chapter.wordIndex));
+   pendingDisplay = currentWordIndex;
    progress = (currentWordIndex / words.length) * 100;
 
    showJumpTo = false;
