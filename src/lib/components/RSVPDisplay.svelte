@@ -29,12 +29,15 @@
   $: wordsBefore = useMultiMode ? wordGroup.slice(0, highlightIndex) : [];
   $: wordsAfter = useMultiMode ? wordGroup.slice(highlightIndex + 1) : [];
 
+  // Mirror ORP position for RTL: 35% from left becomes 65% from left (= 35% from right)
+  $: effectiveOrpPosition = isRtl ? 100 - orpPosition : orpPosition;
+
   // FIX: Detect Hebrew, Arabic, and other RTL scripts
   $: isRtl = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/.test(currentWord);
 </script>
 
 <div class="rsvp-display">
-  <div class="focus-marker" style="left: {orpPosition}%;">
+  <div class="focus-marker" style="left: {effectiveOrpPosition}%;">
     <div class="marker-line top"></div>
     <div class="marker-line bottom"></div>
   </div>
@@ -47,10 +50,10 @@
   >
     {#if currentWord}
       <!-- ORP letter always centered at 50% -->
-      <span class="orp" style="left: {orpPosition}%;">{focusChar}</span>
+      <span class="orp" style="left: {effectiveOrpPosition}%;">{focusChar}</span>
 
       <!-- Content before ORP: prefix of current word + words before -->
-      <span class="before-orp" style="left: {orpPosition}%; direction: {isRtl ? 'rtl' : 'ltr'}">
+      <span class="before-orp" style="left: {effectiveOrpPosition}%; direction: {isRtl ? 'rtl' : 'ltr'}">
         {#if isRtl}
           {wordSuffix}{#if useMultiMode && wordsAfter.length > 0}
             &nbsp;<span class="context-words">{wordsAfter.join(' ')}</span>
@@ -67,7 +70,7 @@
       </span>
 
       <!-- Content after ORP: suffix of current word + words after -->
-      <span class="after-orp" style="left: calc({orpPosition}% + 0.5ch); direction: {isRtl ? 'rtl' : 'ltr'}">
+      <span class="after-orp" style="left: calc({effectiveOrpPosition}% + 0.5ch); direction: {isRtl ? 'rtl' : 'ltr'}">
         {#if isRtl}
           {#if showContext && contextBefore.length > 0}
             <span class="paused-context">{contextBefore.join(' ')}</span>&nbsp;
