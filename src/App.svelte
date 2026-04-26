@@ -12,7 +12,9 @@
     loadSession,
     clearSession,
     hasSession,
-    getSessionSummary
+    getSessionSummary,
+    saveSettings,
+    loadSettings
   } from './lib/progress-storage.js';
   import {
     getBooks,
@@ -75,6 +77,16 @@
   let showChapterMarkers = true;
   let contextWordsBefore = 20;
   let contextWordsAfter = 10;
+
+  let settingsLoaded = false;
+
+  // Auto-save settings whenever any setting changes (after initial load)
+  $: if (settingsLoaded) saveSettings({
+    wordsPerMinute, fadeEnabled, fadeDuration, pauseOnPunctuation,
+    punctuationPauseMultiplier, wordLengthWPMMultiplier, pauseAfterWords,
+    pauseDuration, frameWordCount, showContextEnabled, showChapterMarkers,
+    contextWordsBefore, contextWordsAfter, fontSizePercent, orpPosition
+  });
 
   // Animation
   let wordOpacity = 1;
@@ -577,6 +589,26 @@
   onMount(async () => {
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('keyup', handleKeyup);
+
+    const saved = loadSettings();
+    if (saved) {
+      wordsPerMinute = saved.wordsPerMinute ?? wordsPerMinute;
+      fadeEnabled = saved.fadeEnabled ?? fadeEnabled;
+      fadeDuration = saved.fadeDuration ?? fadeDuration;
+      pauseOnPunctuation = saved.pauseOnPunctuation ?? pauseOnPunctuation;
+      punctuationPauseMultiplier = saved.punctuationPauseMultiplier ?? punctuationPauseMultiplier;
+      wordLengthWPMMultiplier = saved.wordLengthWPMMultiplier ?? wordLengthWPMMultiplier;
+      pauseAfterWords = saved.pauseAfterWords ?? pauseAfterWords;
+      pauseDuration = saved.pauseDuration ?? pauseDuration;
+      frameWordCount = saved.frameWordCount ?? frameWordCount;
+      showContextEnabled = saved.showContextEnabled ?? showContextEnabled;
+      showChapterMarkers = saved.showChapterMarkers ?? showChapterMarkers;
+      contextWordsBefore = saved.contextWordsBefore ?? contextWordsBefore;
+      contextWordsAfter = saved.contextWordsAfter ?? contextWordsAfter;
+      fontSizePercent = saved.fontSizePercent ?? fontSizePercent;
+      orpPosition = saved.orpPosition ?? orpPosition;
+    }
+    settingsLoaded = true;
 
     // Sync from server first, fall back to cache
     libraryBooks = await syncBooks();

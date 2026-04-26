@@ -3,6 +3,22 @@
  */
 
 const STORAGE_KEY = 'rsvp-reading-session';
+const SETTINGS_KEY = 'rsvp-settings';
+
+export function saveSettings(settings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {}
+}
+
+export function loadSettings() {
+  try {
+    const data = localStorage.getItem(SETTINGS_KEY);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Save the current reading session to localStorage
