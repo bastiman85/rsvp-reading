@@ -53,7 +53,7 @@
       <span class="orp" style="left: {effectiveOrpPosition}%;">{focusChar}</span>
 
       <!-- Content before ORP: prefix of current word + words before -->
-      <span class="before-orp" style="left: {effectiveOrpPosition}%; direction: {isRtl ? 'rtl' : 'ltr'}">
+      <span class="before-orp" style="left: {effectiveOrpPosition}%; direction: {isRtl ? 'rtl' : 'ltr'}; --ctx-max-width: calc({effectiveOrpPosition}vw - 2rem)">
         {#if isRtl}
           {wordSuffix}{#if useMultiMode && wordsAfter.length > 0}
             &nbsp;<span class="context-words">{wordsAfter.join(' ')}</span>
@@ -70,7 +70,7 @@
       </span>
 
       <!-- Content after ORP: suffix of current word + words after -->
-      <span class="after-orp" style="left: calc({effectiveOrpPosition}% + 0.5ch); direction: {isRtl ? 'rtl' : 'ltr'}">
+      <span class="after-orp" style="left: calc({effectiveOrpPosition}% + 0.5ch); direction: {isRtl ? 'rtl' : 'ltr'}; --ctx-max-width: calc({100 - effectiveOrpPosition}vw - 2rem)">
         {#if isRtl}
           {#if showContext && contextBefore.length > 0}
             <span class="paused-context">{contextBefore.join(' ')}</span>&nbsp;
@@ -167,7 +167,7 @@
     font-size: 0.4em; /* Slightly smaller for multi-line */
     font-weight: 300;
     opacity: 0.6;
-    max-width: 40vw;
+    max-width: var(--ctx-max-width, 40vw);
     display: inline-block;
     vertical-align: middle;
     line-height: 1.4;
