@@ -12,6 +12,7 @@
   export let contextBefore = [];
   export let contextAfter = [];
   export let fontSizePercent = 100;
+  export let orpPosition = 50;
 
   $: useMultiMode = !showContext && multiWordEnabled && wordGroup.length > 0;
 
@@ -33,7 +34,7 @@
 </script>
 
 <div class="rsvp-display">
-  <div class="focus-marker">
+  <div class="focus-marker" style="left: {orpPosition}%;">
     <div class="marker-line top"></div>
     <div class="marker-line bottom"></div>
   </div>
@@ -46,10 +47,10 @@
   >
     {#if currentWord}
       <!-- ORP letter always centered at 50% -->
-      <span class="orp">{focusChar}</span>
+      <span class="orp" style="left: {orpPosition}%;">{focusChar}</span>
 
       <!-- Content before ORP: prefix of current word + words before -->
-      <span class="before-orp" style="direction: {isRtl ? 'rtl' : 'ltr'}">
+      <span class="before-orp" style="left: {orpPosition}%; direction: {isRtl ? 'rtl' : 'ltr'}">
         {#if isRtl}
           {wordSuffix}{#if useMultiMode && wordsAfter.length > 0}
             &nbsp;<span class="context-words">{wordsAfter.join(' ')}</span>
@@ -66,7 +67,7 @@
       </span>
 
       <!-- Content after ORP: suffix of current word + words after -->
-      <span class="after-orp" style="direction: {isRtl ? 'rtl' : 'ltr'}">
+      <span class="after-orp" style="left: calc({orpPosition}% + 0.5ch); direction: {isRtl ? 'rtl' : 'ltr'}">
         {#if isRtl}
           {#if showContext && contextBefore.length > 0}
             <span class="paused-context">{contextBefore.join(' ')}</span>&nbsp;
@@ -102,7 +103,6 @@
 
   .focus-marker {
     position: absolute;
-    left: 50%;
     transform: translateX(-50%);
     height: 100%;
     width: 3px;
@@ -173,7 +173,6 @@
 
   .orp {
     position: absolute;
-    left: 50%;
     transform: translateX(-50%);
     color: #ff4444;
     font-weight: 700;
@@ -183,7 +182,6 @@
 
   .before-orp {
     position: absolute;
-    left: 50%;
     transform: translateX(calc(-100% - 0.5ch));
     color: #fff;
     /* direction: ltr; -- REMOVED to support dynamic RTL/LTR via inline style */
@@ -195,7 +193,6 @@
 
   .after-orp {
     position: absolute;
-    left: calc(50% + 0.5ch);
     color: #fff;
     text-align: left;
     display: flex;

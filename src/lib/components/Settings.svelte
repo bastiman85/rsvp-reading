@@ -15,6 +15,7 @@
   export let contextWordsBefore = 20;
   export let contextWordsAfter = 10;
   export let fontSizePercent = 100;
+  export let orpPosition = 50;
 
   const dispatch = createEventDispatcher();
 
@@ -95,6 +96,15 @@
         <span class="control-value">{fontSizePercent}%</span>
       </div>
       <input type="range" min="50" max="150" step="5" bind:value={fontSizePercent} class="slider">
+    </div>
+
+    <div class="control-row">
+      <div class="control-header">
+        <span>ORP position</span>
+        <span class="control-value">{orpPosition}%</span>
+      </div>
+      <input type="range" min="15" max="50" step="1" bind:value={orpPosition} class="slider">
+      <p class="hint-text">How far from the left edge the focus letter appears</p>
     </div>
 
     <div class="control-row">
