@@ -103,7 +103,7 @@
         <span>ORP position</span>
         <span class="control-value">{orpPosition}%</span>
       </div>
-      <input type="range" min="15" max="50" step="1" bind:value={orpPosition} class="slider">
+      <input type="range" min="15" max="50" step="5" bind:value={orpPosition} class="slider">
       <p class="hint-text">How far from the left edge the focus letter appears</p>
     </div>
 
