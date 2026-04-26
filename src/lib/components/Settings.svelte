@@ -16,6 +16,7 @@
   export let contextWordsAfter = 10;
   export let fontSizePercent = 100;
   export let orpPosition = 50;
+  export let orpHighlight = true;
 
   const dispatch = createEventDispatcher();
 
@@ -105,6 +106,20 @@
       </div>
       <input type="range" min="15" max="50" step="5" bind:value={orpPosition} class="slider">
       <p class="hint-text">How far from the left edge the focus letter appears</p>
+    </div>
+
+    <div class="toggle-row">
+      <span class="toggle-label">Highlight ORP letter</span>
+      <button
+        class="toggle"
+        class:active={orpHighlight}
+        on:click={() => orpHighlight = !orpHighlight}
+        role="switch"
+        aria-checked={orpHighlight}
+        aria-label="Toggle ORP letter highlight"
+      >
+        <span class="toggle-thumb"></span>
+      </button>
     </div>
 
     <div class="control-row">

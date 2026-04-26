@@ -36,6 +36,7 @@
   let frameWordCount = 1;
   let fontSizePercent = 100;
   let orpPosition = 50;
+  let orpHighlight = true;
   let text = `Rapid serial visual presentation (RSVP) is a scientific method for studying the timing of vision. In RSVP, a sequence of stimuli is shown to an observer at one location in their visual field. This technique has been adapted for speed reading applications, where words are displayed one at a time at a fixed point, eliminating the need for eye movements and potentially increasing reading speed significantly.`;
   let words = [];
   let currentWordIndex = 0;
@@ -87,7 +88,7 @@
     wordsPerMinute, fadeEnabled, fadeDuration, pauseOnPunctuation,
     punctuationPauseMultiplier, wordLengthWPMMultiplier, pauseAfterWords,
     pauseDuration, frameWordCount, showContextEnabled, showChapterMarkers,
-    contextWordsBefore, contextWordsAfter, fontSizePercent, orpPosition
+    contextWordsBefore, contextWordsAfter, fontSizePercent, orpPosition, orpHighlight
   });
 
   // Animation
@@ -385,7 +386,8 @@
         frameWordCount,
         showContextEnabled,
         fontSizePercent,
-        orpPosition
+        orpPosition,
+        orpHighlight
       }
     });
   }
@@ -413,6 +415,7 @@
       showContextEnabled = session.settings.showContextEnabled ?? showContextEnabled;
       fontSizePercent = session.settings.fontSizePercent ?? fontSizePercent;
       orpPosition = session.settings.orpPosition ?? orpPosition;
+      orpHighlight = session.settings.orpHighlight ?? orpHighlight;
     }
 
     isManualPause = false;
@@ -638,6 +641,7 @@
       contextWordsAfter = saved.contextWordsAfter ?? contextWordsAfter;
       fontSizePercent = saved.fontSizePercent ?? fontSizePercent;
       orpPosition = saved.orpPosition ?? orpPosition;
+      orpHighlight = saved.orpHighlight ?? orpHighlight;
     }
     settingsLoaded = true;
 
@@ -816,6 +820,7 @@
         bind:contextWordsAfter
         bind:fontSizePercent
         bind:orpPosition
+        bind:orpHighlight
         on:close={() => showSettings = false}
       />
     </div>
@@ -943,6 +948,7 @@
       {contextAfter}
       {fontSizePercent}
       {orpPosition}
+      {orpHighlight}
     />
   </div>
 

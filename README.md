@@ -348,6 +348,10 @@ This fork adds the following features and improvements:
 - Hover tooltips showing chapter names
 - Time remaining to next chapter shown when paused in reading mode
 - Toggle chapter markers on/off in settings
+- **Accurate chapter positions**: word indices are computed after text normalisation in a two-phase parse so chapter jumps land at the correct word
+
+### Text Parsing
+- **Missing spaces restored**: spaces after `.!?,;:` that were lost during HTML-to-text extraction are automatically reinserted, preventing words from being joined across tag boundaries
 
 ### Server-Side Storage
 - Express server (`server.js`) serving both the app and a REST API
@@ -358,6 +362,7 @@ This fork adds the following features and improvements:
 ### Display & Settings
 - **Font size**: Text size slider (50–150%) in settings
 - **ORP position**: Adjust the focal letter's horizontal position (15–50% from left edge) in settings
+- **ORP highlight**: Toggle the red highlight and focus-marker lines on/off in settings
 - **RTL support**: ORP position automatically mirrors for right-to-left text
 - **Persistent settings**: WPM, font size, ORP position, and all other settings are saved independently of sessions and survive page reloads without a saved book
 

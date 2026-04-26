@@ -67,24 +67,20 @@ export async function parseEPUB(file) {
     walkToc(book.navigation.toc)
   }
 
-  let fullText = ''
   const chapters = []
 
   // Get spine items - the API varies between versions
   const spineItems = book.spine?.spineItems || book.spine?.items || []
 
+  // Phase 1: load and clean each spine item, preserving TOC labels
+  const allChunks = []
   for (const item of spineItems) {
     try {
-      // Load the section content using the book's load method
       const href = item.href || item.url
       if (!href) continue
 
-      // Check if this spine item corresponds to a TOC entry
       const baseHref = href.split('#')[0]
-      const tocLabel = tocMap.get(baseHref)
-
-      // Count words so far to get the word index for this chapter
-      const wordIndexBefore = fullText.split(/\s+/).filter(w => w.length > 0).length
+      const tocLabel = tocMap.get(baseHref) || null
 
       const contents = await book.load(href)
       if (contents) {
@@ -99,14 +95,9 @@ export async function parseEPUB(file) {
           text = contents.documentElement.textContent || ''
         }
 
-        if (text.trim()) {
-          if (tocLabel) {
-            chapters.push({
-              title: tocLabel,
-              wordIndex: wordIndexBefore
-            })
-          }
-          fullText += text + ' '
+        const cleanedChunk = cleanText(text)
+        if (cleanedChunk) {
+          allChunks.push({ cleanedChunk, tocLabel })
         }
       }
     } catch (e) {
@@ -114,8 +105,21 @@ export async function parseEPUB(file) {
     }
   }
 
+  // Phase 2: compute chapter word indices against the already-cleaned text.
+  // Word positions are accumulated chunk-by-chunk so they match exactly what
+  // parseTextUtil will produce when splitting the final joined string.
+  let fullText = ''
+  let wordPos = 0
+  for (const { cleanedChunk, tocLabel } of allChunks) {
+    if (tocLabel) {
+      chapters.push({ title: tocLabel, wordIndex: wordPos })
+    }
+    wordPos += cleanedChunk.split(/\s+/).filter(w => w.length > 0).length
+    fullText += cleanedChunk + ' '
+  }
+
   const title = book.package?.metadata?.title || ''
-  return { text: cleanText(fullText), chapters, title }
+  return { text: fullText.trim(), chapters, title }
 }
 
 /**
@@ -125,9 +129,14 @@ export async function parseEPUB(file) {
  */
 function cleanText(text) {
   return text
+    // Ensure space after sentence-ending punctuation followed by a letter (handles missing
+    // spaces when HTML text nodes are concatenated without whitespace, e.g. "end.Next")
+    .replace(/([.!?])([A-Za-z])/g, '$1 $2')
+    // Ensure space after comma/semicolon/colon followed by a letter
+    .replace(/([,;:])([A-Za-z])/g, '$1 $2')
     // Replace multiple spaces/newlines with single space
     .replace(/\s+/g, ' ')
-    // Remove excessive punctuation
+    // Remove excessive repeated punctuation (e.g. "..." → ".")
     .replace(/([.!?])\1+/g, '$1')
     // Trim
     .trim()

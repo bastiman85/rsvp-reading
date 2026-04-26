@@ -13,6 +13,7 @@
   export let contextAfter = [];
   export let fontSizePercent = 100;
   export let orpPosition = 50;
+  export let orpHighlight = true;
 
   $: useMultiMode = !showContext && multiWordEnabled && wordGroup.length > 0;
 
@@ -37,7 +38,7 @@
 </script>
 
 <div class="rsvp-display">
-  <div class="focus-marker" style="left: {effectiveOrpPosition}%;">
+  <div class="focus-marker" class:hidden={!orpHighlight} style="left: {effectiveOrpPosition}%;">
     <div class="marker-line top"></div>
     <div class="marker-line bottom"></div>
   </div>
@@ -54,7 +55,7 @@
   >
     {#if currentWord}
       <!-- ORP letter always centered at 50% -->
-      <span class="orp" style="left: {effectiveOrpPosition}%;">{focusChar}</span>
+      <span class="orp" class:no-highlight={!orpHighlight} style="left: {effectiveOrpPosition}%;">{focusChar}</span>
 
       <!-- Content before ORP: prefix of current word + words before -->
       <span class="before-orp" style="left: {effectiveOrpPosition}%; direction: {isRtl ? 'rtl' : 'ltr'}; --ctx-max-width: calc({effectiveOrpPosition}vw - 2rem)">
@@ -189,6 +190,15 @@
     font-weight: 700;
     text-shadow: 0 0 30px rgba(255, 68, 68, 0.6);
     z-index: 2;
+  }
+
+  .orp.no-highlight {
+    color: #fff;
+    text-shadow: none;
+  }
+
+  .focus-marker.hidden {
+    display: none;
   }
 
   .before-orp {
